@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💕 情侣真心话转盘</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44dff 50%, #6e8efb 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* ===== 浮动爱心背景 ===== */
+        .hearts-bg {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+        .heart-float {
+            position: absolute;
+            font-size: 20px;
+            opacity: 0.15;
+            animation: floatUp linear infinite;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.15; }
+            90% { opacity: 0.15; }
+            100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+        }
+
+        /* ===== 主容器 ===== */
+        .app {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            gap: 32px;
+            padding: 24px;
+            max-width: 1100px;
+            width: 100%;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        /* ===== 转盘区域 ===== */
+        .wheel-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 28px;
+        }
+
+        .title {
+            color: #fff;
+            font-size: 32px;
+            font-weight: 700;
+            text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+            letter-spacing: 2px;
+        }
+        .title span { font-size: 38px; }
+
+        .wheel-container {
+            position: relative;
+            width: 420px;
+            height: 420px;
+        }
+
+        /* 指针 */
+        .pointer {
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            font-size: 40px;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+            transition: transform 0.1s;
+        }
+        .pointer.bounce {
+            animation: pointerBounce 0.15s ease;
+        }
+        @keyframes pointerBounce {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.3); }
+        }
+
+        canvas {
+            width: 420px;
+            height: 420px;
+            border-radius: 50%;
+            box-shadow:
+                0 0 0 8px rgba(255,255,255,0.3),
+                0 0 0 12px rgba(255,255,255,0.1),
+                0 8px 40px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: box-shadow 0.3s;
+        }
+        canvas:hover {
+            box-shadow:
+                0 0 0 8px rgba(255,255,255,0.4),
+                0 0 0 12px rgba(255,255,255,0.15),
+                0 12px 50px rgba(0,0,0,0.35);
+        }
+
+        /* 中心按钮 */
+        .center-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            background: linear-gradient(135deg, #ff4d6d, #c9184a);
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            z-index: 5;
+            box-shadow: 0 4px 20px rgba(201,24,74,0.5);
+            transition: all 0.3s;
+            letter-spacing: 2px;
+        }
+        .center-btn:hover {
+            transform: translate(-50%, -50%) scale(1.1);
+            box-shadow: 0 6px 30px rgba(201,24,74,0.7);
+        }
+        .center-btn:active {
+            transform: translate(-50%, -50%) scale(0.95);
+        }
+        .center-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: translate(-50%, -50%);
+        }
+
+        /* ===== 编辑面板 ===== */
+        .edit-panel {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 28px;
+            width: 340px;
+            max-height: 580px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .panel-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+        }
+        .question-count {
+            background: linear-gradient(135deg, #ff6b9d, #c44dff);
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .add-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .add-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 2px solid #e8e8e8;
+            border-radius: 12px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+        .add-input:focus {
+            border-color: #c44dff;
+        }
+        .add-btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #ff6b9d, #c44dff);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        .add-btn:hover { transform: scale(1.05); opacity: 0.9; }
+
+        .question-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-right: 4px;
+        }
+        .question-list::-webkit-scrollbar { width: 4px; }
+        .question-list::-webkit-scrollbar-track { background: transparent; }
+        .question-list::-webkit-scrollbar-thumb {
+            background: #ddd;
+            border-radius: 4px;
+        }
+
+        .q-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: #f8f7ff;
+            border-radius: 12px;
+            transition: all 0.3s;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .q-item:hover {
+            background: #f0edff;
+            transform: translateX(4px);
+        }
+        .q-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .q-text {
+            flex: 1;
+            font-size: 14px;
+            color: #444;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+        .q-delete {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 8px;
+            background: #fee;
+            color: #e74c3c;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .q-delete:hover {
+            background: #e74c3c;
+            color: #fff;
+            transform: scale(1.1);
+        }
+
+        .reset-btn {
+            margin-top: 12px;
+            padding: 8px;
+            border: 2px dashed #ddd;
+            border-radius: 12px;
+            background: transparent;
+            color: #999;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        .reset-btn:hover {
+            border-color: #c44dff;
+            color: #c44dff;
+        }
+
+        /* ===== 结果弹窗 ===== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s;
+        }
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .modal {
+            background: #fff;
+            border-radius: 24px;
+            padding: 40px 36px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.8) translateY(20px);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .modal-overlay.show .modal {
+            transform: scale(1) translateY(0);
+        }
+        .modal-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        .modal-label {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+        .modal-question {
+            font-size: 20px;
+            color: #333;
+            line-height: 1.6;
+            font-weight: 500;
+            margin-bottom: 28px;
+        }
+        .modal-close {
+            padding: 12px 40px;
+            border: none;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #ff6b9d, #c44dff);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        .modal-close:hover { transform: scale(1.05); }
+
+        /* ===== 空状态 ===== */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #bbb;
+        }
+        .empty-state .emoji { font-size: 40px; margin-bottom: 12px; }
+        .empty-state p { font-size: 14px; }
+
+        /* ===== 移动端适配 ===== */
+        @media (max-width: 860px) {
+            .app {
+                flex-direction: column;
+                align-items: center;
+                gap: 24px;
+                padding: 16px;
+            }
+            .wheel-container { width: 320px; height: 320px; }
+            canvas { width: 320px; height: 320px; }
+            .title { font-size: 24px; }
+            .title span { font-size: 30px; }
+            .center-btn { width: 64px; height: 64px; font-size: 15px; }
+            .edit-panel { width: 100%; max-width: 400px; max-height: 400px; }
+        }
+
+        /* ===== 移动端编辑面板切换 ===== */
+        .edit-toggle {
+            display: none;
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #ff6b9d, #c44dff);
+            color: #fff;
+            font-size: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 50;
+            transition: transform 0.3s;
+        }
+        .edit-toggle:hover { transform: scale(1.1); }
+
+        @media (max-width: 860px) {
+            .edit-toggle { display: flex; align-items: center; justify-content: center; }
+            .edit-panel {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                max-width: 100%;
+                max-height: 70vh;
+                border-radius: 20px 20px 0 0;
+                transform: translateY(100%);
+                transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1);
+                z-index: 60;
+            }
+            .edit-panel.show { transform: translateY(0); }
+        }
+
+        .mobile-panel-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 55;
+        }
+        @media (max-width: 860px) {
+            .mobile-panel-overlay.show { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 浮动爱心背景 -->
+<div class="hearts-bg" id="heartsBg"></div>
+
+<!-- 移动端编辑面板遮罩 -->
+<div class="mobile-panel-overlay" id="panelOverlay"></div>
+
+<!-- 移动端编辑按钮 -->
+<button class="edit-toggle" id="editToggle" title="编辑题目">✏️</button>
+
+<div class="app">
+    <!-- 转盘区域 -->
+    <div class="wheel-section">
+        <div class="title">💕 情侣<span>真心话</span>转盘 💕</div>
+        <div class="wheel-container">
+            <div class="pointer" id="pointer">👇</div>
+            <canvas id="wheel" width="840" height="840"></canvas>
+            <button class="center-btn" id="spinBtn">转!</button>
+        </div>
+    </div>
+
+    <!-- 编辑面板 -->
+    <div class="edit-panel" id="editPanel">
+        <div class="panel-header">
+            <div class="panel-title">📝 编辑真心话</div>
+            <div class="question-count" id="qCount">0 题</div>
+        </div>
+        <div class="add-row">
+            <input class="add-input" id="newQ" type="text" placeholder="输入新的真心话..." maxlength="50">
+            <button class="add-btn" id="addBtn">添加</button>
+        </div>
+        <div class="question-list" id="qList"></div>
+        <button class="reset-btn" id="resetBtn">🔄 恢复默认题目</button>
+    </div>
+</div>
+
+<!-- 结果弹窗 -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <div class="modal-icon">💝</div>
+        <div class="modal-label">— 真心话 —</div>
+        <div class="modal-question" id="modalQuestion"></div>
+        <button class="modal-close" id="modalClose">好的，我知道了 💕</button>
+    </div>
+</div>
+
+<script>
+// ===== 默认真心话题目 =====
+const DEFAULT_QUESTIONS = [
+    "你最想和我一起做的事情是什么？",
+    "你第一次见到我是什么感觉？",
+    "你觉得我最吸引你的地方是什么？",
+    "你有没有偷偷看过我的手机？",
+    "你做过最浪漫的事是什么？",
+    "你最想收到什么样的惊喜？",
+    "如果可以重来，你还会选择我吗？",
+    "你觉得我们之间最默契的瞬间是什么？",
+    "你有没有因为我而哭过？",
+    "你心中理想的一天是什么样的？",
+    "你最喜欢我叫你什么？",
+    "你觉得我什么时候最可爱？",
+    "你有没有想对我却说出口的话？",
+    "你最害怕失去什么？",
+    "你梦想中的求婚方式是什么？",
+    "你有没有因为我改变过什么习惯？"
+];
+
+// 扇形配色（情侣风）
+const COLORS = [
+    '#FF6B9D', '#C44DFF', '#6E8EFB', '#FF8A5C',
+    '#45D9A8', '#FFD93D', '#FF6B6B', '#A66CFF',
+    '#5CC8FF', '#FF9FF3', '#FFA07A', '#87CEEB'
+];
+
+// ===== 状态 =====
+let questions = [];
+let currentAngle = 0;
+let isSpinning = false;
+let canvas, ctx;
+
+// ===== 初始化 =====
+function init() {
+    canvas = document.getElementById('wheel');
+    ctx = canvas.getContext('2d');
+    loadQuestions();
+    renderWheel();
+    renderList();
+    createHearts();
+    bindEvents();
+}
+
+// ===== 题目管理 =====
+function loadQuestions() {
+    const saved = localStorage.getItem('couple_truth_questions');
+    questions = saved ? JSON.parse(saved) : [...DEFAULT_QUESTIONS];
+}
+
+function saveQuestions() {
+    localStorage.setItem('couple_truth_questions', JSON.stringify(questions));
+}
+
+function addQuestion(text) {
+    text = text.trim();
+    if (!text) return;
+    if (questions.length >= 24) {
+        alert('最多支持 24 道题目哦~');
+        return;
+    }
+    questions.push(text);
+    saveQuestions();
+    renderWheel();
+    renderList();
+}
+
+function deleteQuestion(index) {
+    if (questions.length <= 2) {
+        alert('至少保留 2 道题目哦~');
+        return;
+    }
+    questions.splice(index, 1);
+    saveQuestions();
+    renderWheel();
+    renderList();
+}
+
+function resetQuestions() {
+    questions = [...DEFAULT_QUESTIONS];
+    saveQuestions();
+    renderWheel();
+    renderList();
+}
+
+// ===== 转盘绘制 =====
+function renderWheel() {
+    const w = canvas.width;
+    const h = canvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+    const r = Math.max(1, (Math.min(w, h) / 2) - 10);
+
+    ctx.clearRect(0, 0, w, h);
+    const n = questions.length;
+    if (n === 0) return;
+
+    const sliceAngle = (2 * Math.PI) / n;
+
+    for (let i = 0; i < n; i++) {
+        const startAngle = currentAngle + i * sliceAngle;
+        const endAngle = startAngle + sliceAngle;
+
+        // 绘制扇形
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = COLORS[i % COLORS.length];
+        ctx.fill();
+
+        // 扇形边线
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 文字
+        ctx.save();
+        ctx.translate(cx, cy);
+        const midAngle = startAngle + sliceAngle / 2;
+        ctx.rotate(midAngle);
+
+        const textRadius = r * 0.62;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // 自适应字号
+        let fontSize = Math.min(22, Math.max(12, 260 / n));
+        ctx.font = `500 ${fontSize}px 'Noto Sans SC', sans-serif`;
+
+        // 截断过长文字
+        let displayText = questions[i];
+        const maxChars = Math.max(4, Math.floor(18 / Math.max(1, n / 8)));
+        if (displayText.length > maxChars) {
+            displayText = displayText.substring(0, maxChars) + '…';
+        }
+
+        ctx.fillStyle = '#fff';
+        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+        ctx.shadowBlur = 4;
+        ctx.fillText(displayText, textRadius, 0);
+        ctx.shadowBlur = 0;
+        ctx.restore();
+    }
+
+    // 中心圆装饰
+    ctx.beginPath();
+    ctx.arc(cx, cy, 56, 0, 2 * Math.PI);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(200,200,200,0.5)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+}
+
+// ===== 旋转逻辑 =====
+function spin() {
+    if (isSpinning || questions.length === 0) return;
+    isSpinning = true;
+    document.getElementById('spinBtn').disabled = true;
+
+    const spinDuration = 4000 + Math.random() * 2000;
+    const totalRotation = (5 + Math.random() * 5) * 2 * Math.PI; // 5~10圈
+    const startAngle = currentAngle;
+    const startTime = performance.now();
+
+    function animate(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / spinDuration, 1);
+
+        // 缓动函数：先快后慢
+        const eased = 1 - Math.pow(1 - progress, 4);
+        currentAngle = startAngle + totalRotation * eased;
+
+        renderWheel();
+
+        // 经过扇形边界时让指针跳动
+        const n = questions.length;
+        const sliceAngle = (2 * Math.PI) / n;
+        const pointerAngle = ((2 * Math.PI - (currentAngle % (2 * Math.PI))) + 2 * Math.PI) % (2 * Math.PI);
+        const inSlice = Math.floor(pointerAngle / sliceAngle);
+        if (!animate.lastSlice && animate.lastSlice !== 0 || animate.lastSlice !== inSlice) {
+            if (animate.lastSlice !== undefined && animate.lastSlice !== inSlice) {
+                const pointer = document.getElementById('pointer');
+                pointer.classList.remove('bounce');
+                void pointer.offsetWidth;
+                pointer.classList.add('bounce');
+            }
+        }
+        animate.lastSlice = inSlice;
+
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        } else {
+            isSpinning = false;
+            document.getElementById('spinBtn').disabled = false;
+            showResult();
+        }
+    }
+
+    requestAnimationFrame(animate);
+}
+
+function showResult() {
+    const n = questions.length;
+    if (n === 0) return;
+    const sliceAngle = (2 * Math.PI) / n;
+    // 指针在顶部（-π/2 即 3π/2 方向）
+    const pointerAngle = ((2 * Math.PI - (currentAngle % (2 * Math.PI))) + 2 * Math.PI) % (2 * Math.PI);
+    const index = Math.floor(pointerAngle / sliceAngle) % n;
+
+    const question = questions[index];
+    document.getElementById('modalQuestion').textContent = question;
+    document.getElementById('modalOverlay').classList.add('show');
+}
+
+// ===== 列表渲染 =====
+function renderList() {
+    const list = document.getElementById('qList');
+    document.getElementById('qCount').textContent = `${questions.length} 题`;
+
+    if (questions.length === 0) {
+        list.innerHTML = `
+            <div class="empty-state">
+                <div class="emoji">💭</div>
+                <p>还没有题目，添加一些吧~</p>
+            </div>
+        `;
+        return;
+    }
+
+    list.innerHTML = questions.map((q, i) => `
+        <div class="q-item" data-index="${i}">
+            <div class="q-color" style="background:${COLORS[i % COLORS.length]}"></div>
+            <div class="q-text">${escapeHtml(q)}</div>
+            <button class="q-delete" onclick="deleteQuestion(${i})" title="删除">✕</button>
+        </div>
+    `).join('');
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// ===== 浮动爱心 =====
+function createHearts() {
+    const container = document.getElementById('heartsBg');
+    const hearts = ['💕', '💗', '💖', '❤️', '💜', '🩷', '💝', '💘'];
+    for (let i = 0; i < 20; i++) {
+        const el = document.createElement('div');
+        el.className = 'heart-float';
+        el.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+        el.style.left = Math.random() * 100 + '%';
+        el.style.animationDuration = (8 + Math.random() * 12) + 's';
+        el.style.animationDelay = Math.random() * 10 + 's';
+        el.style.fontSize = (14 + Math.random() * 18) + 'px';
+        container.appendChild(el);
+    }
+}
+
+// ===== 事件绑定 =====
+function bindEvents() {
+    document.getElementById('spinBtn').addEventListener('click', spin);
+    canvas.addEventListener('click', spin);
+
+    document.getElementById('addBtn').addEventListener('click', () => {
+        const input = document.getElementById('newQ');
+        addQuestion(input.value);
+        input.value = '';
+        input.focus();
+    });
+
+    document.getElementById('newQ').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const input = document.getElementById('newQ');
+            addQuestion(input.value);
+            input.value = '';
+        }
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        if (confirm('确定要恢复默认题目吗？你编辑的题目将丢失。')) {
+            resetQuestions();
+        }
+    });
+
+    document.getElementById('modalClose').addEventListener('click', () => {
+        document.getElementById('modalOverlay').classList.remove('show');
+    });
+
+    document.getElementById('modalOverlay').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) {
+            document.getElementById('modalOverlay').classList.remove('show');
+        }
+    });
+
+    // 移动端编辑面板
+    const editToggle = document.getElementById('editToggle');
+    const editPanel = document.getElementById('editPanel');
+    const panelOverlay = document.getElementById('panelOverlay');
+
+    editToggle.addEventListener('click', () => {
+        editPanel.classList.toggle('show');
+        panelOverlay.classList.toggle('show');
+    });
+
+    panelOverlay.addEventListener('click', () => {
+        editPanel.classList.remove('show');
+        panelOverlay.classList.remove('show');
+    });
+}
+
+// 启动
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>
