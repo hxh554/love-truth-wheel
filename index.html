@@ -816,9 +816,10 @@ function bindEvents() {
         panelOverlay.classList.remove('show');
     }
 
-    // 编辑按钮：切换面板显示/隐藏
+    // 编辑按钮：切换面板显示/隐藏（唯一关闭方式）
     editToggle.addEventListener('click', function(e) {
         e.preventDefault();
+        e.stopPropagation();
         if (editPanel.classList.contains('show')) {
             closePanel();
         } else {
@@ -826,16 +827,8 @@ function bindEvents() {
         }
     });
 
-    // 点击 overlay 遮罩关闭面板
-    // 用 mousedown + preventDefault 阻止产生后续 click
-    panelOverlay.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        closePanel();
-    });
-    panelOverlay.addEventListener('touchstart', function(e) {
-        e.preventDefault();
-        closePanel();
-    }, { passive: false });
+    // overlay 不绑定任何事件！面板只能通过编辑按钮关闭。
+    // 避免移动端键盘弹出、触摸事件链等导致的误关闭。
 }
 
 // 启动
