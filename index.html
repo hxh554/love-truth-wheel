@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💕 情侣真心话转盘</title>
+    <title>💕 情侣真心话转盘 v3</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -445,8 +445,11 @@
 <!-- 移动端编辑面板遮罩 -->
 <div class="mobile-panel-overlay" id="panelOverlay"></div>
 
-<!-- 移动端编辑按钮 -->
-<button class="edit-toggle" id="editToggle" title="编辑题目">✏️</button>
+    <!-- 移动端编辑按钮 -->
+    <button class="edit-toggle" id="editToggle" title="编辑题目">✏️</button>
+
+    <!-- 调试面板 -->
+    <div id="debugPanel" style="position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(0,0,0,0.85);color:#0f0;font:12px monospace;padding:8px;max-height:120px;overflow-y:auto;pointer-events:none;"></div>
 
 <div class="app">
     <!-- 转盘区域 -->
@@ -462,7 +465,7 @@
     <!-- 编辑面板 -->
     <div class="edit-panel" id="editPanel">
         <div class="panel-header">
-            <div class="panel-title">📝 编辑真心话</div>
+            <div class="panel-title">📝 编辑真心话 [v3]</div>
             <div class="question-count" id="qCount">0 题</div>
         </div>
         <div class="add-row">
@@ -511,6 +514,16 @@ const COLORS = [
     '#45D9A8', '#FFD93D', '#FF6B6B', '#A66CFF',
     '#5CC8FF', '#FF9FF3', '#FFA07A', '#87CEEB'
 ];
+
+// ===== 调试 =====
+function showDebug(msg) {
+    const d = document.getElementById('debugPanel');
+    if (!d) return;
+    const t = new Date().toLocaleTimeString();
+    d.innerHTML = `<div>[${t}] ${msg}</div>` + d.innerHTML;
+    // 只保留最新10条
+    while (d.children.length > 10) d.removeChild(d.lastChild);
+}
 
 // ===== 状态 =====
 let questions = [];
@@ -772,6 +785,7 @@ function bindEvents() {
 
     document.getElementById('addBtn').addEventListener('click', function(e) {
         e.stopPropagation();
+        showDebug('添加按钮被点击');
         const input = document.getElementById('newQ');
         addQuestion(input.value);
         input.value = '';
@@ -779,12 +793,26 @@ function bindEvents() {
     });
 
     document.getElementById('newQ').addEventListener('keydown', function(e) {
+        showDebug('输入框 keydown: ' + e.key);
         if (e.key === 'Enter') {
             e.preventDefault();
             const input = document.getElementById('newQ');
             addQuestion(input.value);
             input.value = '';
         }
+    });
+    // 移动端没有物理键盘，也监听 input 事件
+    document.getElementById('newQ').addEventListener('input', function(e) {
+        showDebug('输入框 input 事件触发，值: ' + this.value);
+    });
+    document.getElementById('newQ').addEventListener('focus', function(e) {
+        showDebug('输入框获得焦点');
+    });
+    document.getElementById('newQ').addEventListener('touchstart', function(e) {
+        showDebug('输入框 touchstart');
+    });
+    document.getElementById('newQ').addEventListener('click', function(e) {
+        showDebug('输入框 click');
     });
 
     document.getElementById('resetBtn').addEventListener('click', () => {
@@ -830,6 +858,16 @@ function bindEvents() {
 
     // overlay 不绑定任何事件！面板只能通过编辑按钮关闭。
     // 避免移动端键盘弹出、触摸事件链等导致的误关闭。
+
+    // 调试：监控面板和overlay的所有事件
+    ['touchstart','touchend','mousedown','mouseup','click'].forEach(evt => {
+        editPanel.addEventListener(evt, function(e) {
+            showDebug('editPanel ' + evt + ' → target: ' + e.target.tagName + '.' + e.target.className);
+        });
+        panelOverlay.addEventListener(evt, function(e) {
+            showDebug('overlay ' + evt + ' → target: ' + e.target.tagName);
+        });
+    });
 }
 
 // 启动
