@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -271,6 +272,8 @@
             justify-content: center;
             transition: all 0.2s;
             flex-shrink: 0;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
         .q-delete:hover {
             background: #e74c3c;
@@ -716,9 +719,19 @@ function renderList() {
         <div class="q-item" data-index="${i}">
             <div class="q-color" style="background:${COLORS[i % COLORS.length]}"></div>
             <div class="q-text">${escapeHtml(q)}</div>
-            <button class="q-delete" onclick="deleteQuestion(${i})" title="删除">✕</button>
+            <button class="q-delete" data-del="${i}" title="删除">✕</button>
         </div>
     `).join('');
+
+    // 用事件委托绑定删除按钮，防止 onclick 在移动端失效
+    list.querySelectorAll('.q-delete').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const idx = parseInt(this.getAttribute('data-del'), 10);
+            deleteQuestion(idx);
+        });
+    });
 }
 
 function escapeHtml(str) {
@@ -745,18 +758,28 @@ function createHearts() {
 
 // ===== 事件绑定 =====
 function bindEvents() {
-    document.getElementById('spinBtn').addEventListener('click', spin);
-    canvas.addEventListener('click', spin);
+    document.getElementById('spinBtn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        spin();
+    });
 
-    document.getElementById('addBtn').addEventListener('click', () => {
+    canvas.addEventListener('click', function(e) {
+        // 如果编辑面板打开状态，不触发旋转（移动端）
+        if (document.getElementById('editPanel').classList.contains('show')) return;
+        spin();
+    });
+
+    document.getElementById('addBtn').addEventListener('click', function(e) {
+        e.stopPropagation();
         const input = document.getElementById('newQ');
         addQuestion(input.value);
         input.value = '';
         input.focus();
     });
 
-    document.getElementById('newQ').addEventListener('keydown', (e) => {
+    document.getElementById('newQ').addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
+            e.preventDefault();
             const input = document.getElementById('newQ');
             addQuestion(input.value);
             input.value = '';
@@ -784,15 +807,28 @@ function bindEvents() {
     const editPanel = document.getElementById('editPanel');
     const panelOverlay = document.getElementById('panelOverlay');
 
-    editToggle.addEventListener('click', () => {
-        editPanel.classList.toggle('show');
-        panelOverlay.classList.toggle('show');
-    });
-
-    panelOverlay.addEventListener('click', () => {
+    function openPanel() {
+        editPanel.classList.add('show');
+        panelOverlay.classList.add('show');
+    }
+    function closePanel() {
         editPanel.classList.remove('show');
         panelOverlay.classList.remove('show');
+    }
+
+    // 编辑按钮：切换面板显示/隐藏（唯一关闭方式）
+    editToggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (editPanel.classList.contains('show')) {
+            closePanel();
+        } else {
+            openPanel();
+        }
     });
+
+    // overlay 不绑定任何事件！面板只能通过编辑按钮关闭。
+    // 避免移动端键盘弹出、触摸事件链等导致的误关闭。
 }
 
 // 启动
