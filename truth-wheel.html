@@ -3,8 +3,8 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💕 情侣真心话转盘 v3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>💕 情侣真心话转盘</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -40,6 +40,25 @@
             90% { opacity: 0.15; }
             100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
         }
+
+        /* ===== 同步状态指示 ===== */
+        .sync-status {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 200;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #fff;
+            background: rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+            pointer-events: none;
+        }
+        .sync-status.syncing { background: rgba(255,193,7,0.8); }
+        .sync-status.synced { background: rgba(76,175,80,0.7); }
+        .sync-status.error { background: rgba(244,67,54,0.8); }
 
         /* ===== 主容器 ===== */
         .app {
@@ -194,6 +213,7 @@
             outline: none;
             transition: border-color 0.3s;
             font-family: inherit;
+            -webkit-appearance: none;
         }
         .add-input:focus {
             border-color: #c44dff;
@@ -209,6 +229,7 @@
             cursor: pointer;
             transition: all 0.3s;
             white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
         }
         .add-btn:hover { transform: scale(1.05); opacity: 0.9; }
 
@@ -219,6 +240,7 @@
             flex-direction: column;
             gap: 8px;
             padding-right: 4px;
+            -webkit-overflow-scrolling: touch;
         }
         .question-list::-webkit-scrollbar { width: 4px; }
         .question-list::-webkit-scrollbar-track { background: transparent; }
@@ -292,6 +314,7 @@
             cursor: pointer;
             transition: all 0.3s;
             font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
         }
         .reset-btn:hover {
             border-color: #c44dff;
@@ -383,7 +406,6 @@
             .title { font-size: 24px; }
             .title span { font-size: 30px; }
             .center-btn { width: 64px; height: 64px; font-size: 15px; }
-            .edit-panel { width: 100%; max-width: 400px; max-height: 400px; }
         }
 
         /* ===== 移动端编辑面板切换 ===== */
@@ -401,8 +423,10 @@
             font-size: 24px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             cursor: pointer;
-            z-index: 50;
+            z-index: 70;
             transition: transform 0.3s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
         .edit-toggle:hover { transform: scale(1.1); }
 
@@ -424,6 +448,7 @@
             .edit-panel.show { transform: translateY(0); }
         }
 
+        /* overlay 纯装饰，不拦截任何事件 */
         .mobile-panel-overlay {
             display: none;
             position: fixed;
@@ -442,14 +467,14 @@
 <!-- 浮动爱心背景 -->
 <div class="hearts-bg" id="heartsBg"></div>
 
+<!-- 同步状态指示 -->
+<div class="sync-status" id="syncStatus">🔄 同步中...</div>
+
 <!-- 移动端编辑面板遮罩 -->
 <div class="mobile-panel-overlay" id="panelOverlay"></div>
 
-    <!-- 移动端编辑按钮 -->
-    <button class="edit-toggle" id="editToggle" title="编辑题目">✏️</button>
-
-    <!-- 调试面板 -->
-    <div id="debugPanel" style="position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(0,0,0,0.85);color:#0f0;font:12px monospace;padding:8px;max-height:120px;overflow-y:auto;pointer-events:none;"></div>
+<!-- 移动端编辑按钮 -->
+<button class="edit-toggle" id="editToggle" title="编辑题目">✏️</button>
 
 <div class="app">
     <!-- 转盘区域 -->
@@ -465,11 +490,11 @@
     <!-- 编辑面板 -->
     <div class="edit-panel" id="editPanel">
         <div class="panel-header">
-            <div class="panel-title">📝 编辑真心话 [v3]</div>
+            <div class="panel-title">📝 编辑真心话</div>
             <div class="question-count" id="qCount">0 题</div>
         </div>
         <div class="add-row">
-            <input class="add-input" id="newQ" type="text" placeholder="输入新的真心话..." maxlength="50">
+            <input class="add-input" id="newQ" type="text" placeholder="输入新的真心话..." maxlength="50" autocomplete="off">
             <button class="add-btn" id="addBtn">添加</button>
         </div>
         <div class="question-list" id="qList"></div>
@@ -488,6 +513,13 @@
 </div>
 
 <script>
+// ===== JSONBin.io 云端配置 =====
+const JSONBIN_CONFIG = {
+    binId: '69eae5d2aaba88219730733f',
+    apiKey: '$2a$10$r03jruURRQm5CT83Rt5VHupUOTpehRaqrTkSlzI7eC.L04wNc2Nbi',
+    baseUrl: 'https://api.jsonbin.io/v3'
+};
+
 // ===== 默认真心话题目 =====
 const DEFAULT_QUESTIONS = [
     "你最想和我一起做的事情是什么？",
@@ -502,7 +534,7 @@ const DEFAULT_QUESTIONS = [
     "你心中理想的一天是什么样的？",
     "你最喜欢我叫你什么？",
     "你觉得我什么时候最可爱？",
-    "你有没有想对我却说出口的话？",
+    "你有没有想对我说却没说出口的话？",
     "你最害怕失去什么？",
     "你梦想中的求婚方式是什么？",
     "你有没有因为我改变过什么习惯？"
@@ -515,44 +547,97 @@ const COLORS = [
     '#5CC8FF', '#FF9FF3', '#FFA07A', '#87CEEB'
 ];
 
-// ===== 调试 =====
-function showDebug(msg) {
-    const d = document.getElementById('debugPanel');
-    if (!d) return;
-    const t = new Date().toLocaleTimeString();
-    d.innerHTML = `<div>[${t}] ${msg}</div>` + d.innerHTML;
-    // 只保留最新10条
-    while (d.children.length > 10) d.removeChild(d.lastChild);
-}
-
 // ===== 状态 =====
 let questions = [];
 let currentAngle = 0;
 let isSpinning = false;
 let canvas, ctx;
+let isSaving = false; // 防止重复保存
+
+// ===== 同步状态 UI =====
+function setSyncStatus(type, text) {
+    const el = document.getElementById('syncStatus');
+    el.className = 'sync-status ' + type;
+    el.textContent = text;
+}
+
+// ===== JSONBin.io API =====
+async function fetchFromCloud() {
+    try {
+        setSyncStatus('syncing', '🔄 加载中...');
+        const resp = await fetch(`${JSONBIN_CONFIG.baseUrl}/b/${JSONBIN_CONFIG.binId}/latest`, {
+            headers: { 'X-Master-Key': JSONBIN_CONFIG.apiKey }
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        const cloudQuestions = data.record;
+        if (Array.isArray(cloudQuestions) && cloudQuestions.length > 0) {
+            questions = cloudQuestions;
+            localStorage.setItem('couple_truth_questions', JSON.stringify(questions));
+            setSyncStatus('synced', '✅ 已同步');
+        } else {
+            // 云端为空，用默认
+            questions = [...DEFAULT_QUESTIONS];
+            setSyncStatus('synced', '✅ 就绪');
+        }
+    } catch (err) {
+        console.warn('云端加载失败，使用本地缓存:', err);
+        setSyncStatus('error', '⚠️ 离线模式');
+        // 离线：读 localStorage
+        const saved = localStorage.getItem('couple_truth_questions');
+        questions = saved ? JSON.parse(saved) : [...DEFAULT_QUESTIONS];
+    }
+    // 3秒后隐藏状态
+    setTimeout(() => {
+        const el = document.getElementById('syncStatus');
+        if (el) el.style.opacity = '0';
+    }, 3000);
+}
+
+async function saveToCloud() {
+    if (isSaving) return;
+    isSaving = true;
+    try {
+        setSyncStatus('syncing', '⬆️ 保存中...');
+        const resp = await fetch(`${JSONBIN_CONFIG.baseUrl}/b/${JSONBIN_CONFIG.binId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': JSONBIN_CONFIG.apiKey
+            },
+            body: JSON.stringify(questions)
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        setSyncStatus('synced', '✅ 已同步');
+    } catch (err) {
+        console.warn('云端保存失败:', err);
+        setSyncStatus('error', '⚠️ 保存失败，仅本地');
+        // 仍然保存到本地
+        localStorage.setItem('couple_truth_questions', JSON.stringify(questions));
+    }
+    isSaving = false;
+    setTimeout(() => {
+        const el = document.getElementById('syncStatus');
+        if (el) el.style.opacity = '0';
+    }, 2000);
+}
 
 // ===== 初始化 =====
-function init() {
+async function init() {
     canvas = document.getElementById('wheel');
     ctx = canvas.getContext('2d');
-    loadQuestions();
+    createHearts();
+
+    // 从云端加载题目
+    await fetchFromCloud();
+
     renderWheel();
     renderList();
-    createHearts();
     bindEvents();
 }
 
 // ===== 题目管理 =====
-function loadQuestions() {
-    const saved = localStorage.getItem('couple_truth_questions');
-    questions = saved ? JSON.parse(saved) : [...DEFAULT_QUESTIONS];
-}
-
-function saveQuestions() {
-    localStorage.setItem('couple_truth_questions', JSON.stringify(questions));
-}
-
-function addQuestion(text) {
+async function addQuestion(text) {
     text = text.trim();
     if (!text) return;
     if (questions.length >= 24) {
@@ -560,27 +645,27 @@ function addQuestion(text) {
         return;
     }
     questions.push(text);
-    saveQuestions();
     renderWheel();
     renderList();
+    await saveToCloud();
 }
 
-function deleteQuestion(index) {
+async function deleteQuestion(index) {
     if (questions.length <= 2) {
         alert('至少保留 2 道题目哦~');
         return;
     }
     questions.splice(index, 1);
-    saveQuestions();
     renderWheel();
     renderList();
+    await saveToCloud();
 }
 
-function resetQuestions() {
+async function resetQuestions() {
     questions = [...DEFAULT_QUESTIONS];
-    saveQuestions();
     renderWheel();
     renderList();
+    await saveToCloud();
 }
 
 // ===== 转盘绘制 =====
@@ -737,14 +822,14 @@ function renderList() {
         </div>
     `).join('');
 
-    // 用事件委托绑定删除按钮，防止 onclick 在移动端失效
-    list.querySelectorAll('.q-delete').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            const idx = parseInt(this.getAttribute('data-del'), 10);
-            deleteQuestion(idx);
-        });
+    // 事件委托绑定删除
+    list.addEventListener('click', function handler(e) {
+        const btn = e.target.closest('.q-delete');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-del'), 10);
+        deleteQuestion(idx);
     });
 }
 
@@ -772,69 +857,66 @@ function createHearts() {
 
 // ===== 事件绑定 =====
 function bindEvents() {
+    // 转盘按钮
     document.getElementById('spinBtn').addEventListener('click', function(e) {
         e.stopPropagation();
         spin();
     });
 
     canvas.addEventListener('click', function(e) {
-        // 如果编辑面板打开状态，不触发旋转（移动端）
         if (document.getElementById('editPanel').classList.contains('show')) return;
         spin();
     });
 
-    document.getElementById('addBtn').addEventListener('click', function(e) {
+    // ===== 编辑面板事件（核心修复区域）=====
+    // 所有面板内按钮用 onmousedown 而非 onclick，避免移动端 300ms 延迟问题
+    // 同时每个按钮都调用 preventDefault 防止后续 click 事件链
+
+    // 添加按钮
+    var addBtn = document.getElementById('addBtn');
+    addBtn.addEventListener('click', function(e) {
+        e.preventDefault();
         e.stopPropagation();
-        showDebug('添加按钮被点击');
-        const input = document.getElementById('newQ');
+        var input = document.getElementById('newQ');
         addQuestion(input.value);
         input.value = '';
-        input.focus();
+        // 移动端：添加后让输入框重新获得焦点
+        setTimeout(function() { input.focus(); }, 100);
     });
 
+    // 输入框回车
     document.getElementById('newQ').addEventListener('keydown', function(e) {
-        showDebug('输入框 keydown: ' + e.key);
         if (e.key === 'Enter') {
             e.preventDefault();
-            const input = document.getElementById('newQ');
-            addQuestion(input.value);
-            input.value = '';
+            addQuestion(this.value);
+            this.value = '';
         }
     });
-    // 移动端没有物理键盘，也监听 input 事件
-    document.getElementById('newQ').addEventListener('input', function(e) {
-        showDebug('输入框 input 事件触发，值: ' + this.value);
-    });
-    document.getElementById('newQ').addEventListener('focus', function(e) {
-        showDebug('输入框获得焦点');
-    });
-    document.getElementById('newQ').addEventListener('touchstart', function(e) {
-        showDebug('输入框 touchstart');
-    });
-    document.getElementById('newQ').addEventListener('click', function(e) {
-        showDebug('输入框 click');
-    });
 
-    document.getElementById('resetBtn').addEventListener('click', () => {
+    // 恢复默认
+    document.getElementById('resetBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
         if (confirm('确定要恢复默认题目吗？你编辑的题目将丢失。')) {
             resetQuestions();
         }
     });
 
-    document.getElementById('modalClose').addEventListener('click', () => {
+    // 结果弹窗关闭
+    document.getElementById('modalClose').addEventListener('click', function(e) {
+        e.stopPropagation();
         document.getElementById('modalOverlay').classList.remove('show');
     });
-
-    document.getElementById('modalOverlay').addEventListener('click', (e) => {
+    document.getElementById('modalOverlay').addEventListener('click', function(e) {
         if (e.target === e.currentTarget) {
             document.getElementById('modalOverlay').classList.remove('show');
         }
     });
 
-    // 移动端编辑面板
-    const editToggle = document.getElementById('editToggle');
-    const editPanel = document.getElementById('editPanel');
-    const panelOverlay = document.getElementById('panelOverlay');
+    // ===== 移动端编辑面板 =====
+    var editToggle = document.getElementById('editToggle');
+    var editPanel = document.getElementById('editPanel');
+    var panelOverlay = document.getElementById('panelOverlay');
 
     function openPanel() {
         editPanel.classList.add('show');
@@ -845,7 +927,7 @@ function bindEvents() {
         panelOverlay.classList.remove('show');
     }
 
-    // 编辑按钮：切换面板显示/隐藏（唯一关闭方式）
+    // 编辑按钮切换
     editToggle.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -856,17 +938,19 @@ function bindEvents() {
         }
     });
 
-    // overlay 不绑定任何事件！面板只能通过编辑按钮关闭。
-    // 避免移动端键盘弹出、触摸事件链等导致的误关闭。
+    // 点击 overlay 关闭面板（只在点击遮罩本身时）
+    // 用 setTimeout 延迟执行，让面板内的 click 先处理完毕
+    panelOverlay.addEventListener('click', function(e) {
+        // 确保点击的是 overlay 自身，不是面板冒泡
+        if (e.target === panelOverlay) {
+            setTimeout(closePanel, 50);
+        }
+    });
 
-    // 调试：监控面板和overlay的所有事件
-    ['touchstart','touchend','mousedown','mouseup','click'].forEach(evt => {
-        editPanel.addEventListener(evt, function(e) {
-            showDebug('editPanel ' + evt + ' → target: ' + e.target.tagName + '.' + e.target.className);
-        });
-        panelOverlay.addEventListener(evt, function(e) {
-            showDebug('overlay ' + evt + ' → target: ' + e.target.tagName);
-        });
+    // 关键修复：面板内的 click 事件用 stopPropagation 阻止冒泡
+    // 这样点击面板内部元素时，事件不会冒到 body，overlay 的 click 不会被触发
+    editPanel.addEventListener('click', function(e) {
+        e.stopPropagation();
     });
 }
 
